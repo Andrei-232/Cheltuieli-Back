@@ -46,7 +46,7 @@ let ResidentsHandler : HttpHandler =
     fun next ctx ->
         task {
             let total = Database.getResidents()
-            return! json {| totalPlati = total |} next ctx
+            return! json {| locatari = total |} next ctx
         }
 
 let addResidentsHandler : HttpHandler =
