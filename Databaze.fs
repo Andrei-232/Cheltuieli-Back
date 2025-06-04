@@ -3,6 +3,7 @@ module Database
 open MySql.Data.MySqlClient
 open Models
 open System.Data
+open System
 
 let connectionString = 
     "server=127.0.0.1;user=root;password=234221;database=cheltuei_bloc"
@@ -45,6 +46,85 @@ let getTotalPlati() =
     use cmd = new MySqlCommand(query, conn)
     let count = cmd.ExecuteScalar() :?> int64 |> int
     count
+
+let getPlatiPerLuna() =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+
+        // Primul query - obține toate apartamentele
+        let apartamenteQuery = "SELECT id_apartament, numar FROM Apartamente ORDER BY numar;"
+        use apartamenteCmd = new MySqlCommand(apartamenteQuery, conn)
+        use apartamenteReader = apartamenteCmd.ExecuteReader()
+
+        let apartamente = ResizeArray<{| id: string; numar: int |}>()
+        while apartamenteReader.Read() do
+            apartamente.Add({|
+                id = apartamenteReader.GetString("id_apartament")
+                numar = apartamenteReader.GetInt32("numar")
+            |})
+        
+        apartamenteReader.Close()
+
+        // Al doilea query - obține plățile pentru anul curent
+        let platiQuery = """
+            SELECT 
+                id_apartament,
+                luna,
+                SUM(suma) as total_suma
+            FROM Plati 
+            WHERE LEFT(luna, 4) = YEAR(CURDATE())
+            GROUP BY id_apartament, luna
+            ORDER BY id_apartament, luna;
+        """
+        
+        use platiCmd = new MySqlCommand(platiQuery, conn)
+        use platiReader = platiCmd.ExecuteReader()
+
+        let platiDict = System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<int, float>>()
+        
+        while platiReader.Read() do
+            let idApartament = platiReader.GetString("id_apartament")
+            let luna = platiReader.GetString("luna")
+            let totalSuma = platiReader.GetDecimal("total_suma") |> float
+            
+            if not (platiDict.ContainsKey(idApartament)) then
+                platiDict.[idApartament] <- System.Collections.Generic.Dictionary<int, float>()
+            
+            // Parsare luna din formatul 'YYYY-MM'
+            if luna.Length >= 7 then
+                let parts = luna.Split('-')
+                if parts.Length >= 2 then
+                    match System.Int32.TryParse(parts.[1]) with
+                    | (true, lunaNumar) when lunaNumar >= 1 && lunaNumar <= 12 ->
+                        platiDict.[idApartament].[lunaNumar] <- totalSuma
+                    | _ -> ()
+
+        platiReader.Close()
+
+        // Construiește rezultatul final
+        let rezultat = 
+            apartamente
+            |> Seq.map (fun apt ->
+                let platiPeLuni = Array.create 12 0.0
+                
+                if platiDict.ContainsKey(apt.id) then
+                    for kvp in platiDict.[apt.id] do
+                        let lunaIndex = kvp.Key - 1
+                        if lunaIndex >= 0 && lunaIndex < 12 then
+                            platiPeLuni.[lunaIndex] <- kvp.Value
+                
+                {| 
+                    numar = apt.numar
+                    plati = platiPeLuni |> Array.toList 
+                |})
+            |> List.ofSeq
+
+        rezultat
+    with
+    | ex ->
+        printfn "Eroare în getPlatiPerLuna: %s" ex.Message
+        []
 
 let getResidents () =
     use conn = new MySqlConnection(connectionString)

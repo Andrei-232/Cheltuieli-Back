@@ -24,22 +24,53 @@ let loginHandler : HttpHandler =
 let totalApartmentsHandler : HttpHandler =
     fun next ctx ->
         task {
-            let total = Database.getTotalApartments()
-            return! json {| totalApartments = total |} next ctx
+            try
+                let total = Database.getTotalApartments()
+                printfn "Total apartamente: %d" total
+                return! json {| totalApartments = total |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getTotalApartments: %s" ex.Message
+                return! json {| error = ex.Message |} next ctx
         }
 
 let totalLocatariHandler : HttpHandler =
     fun next ctx ->
         task {
-            let total = Database.getTotalLocatari()
-            return! json {| totalLocatari = total |} next ctx
+            try
+                let total = Database.getTotalLocatari()
+                printfn "Total locatari: %d" total
+                return! json {| totalLocatari = total |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getTotalLocatari: %s" ex.Message
+                return! json {| error = ex.Message |} next ctx
         }
 
 let totalPlatiHandler : HttpHandler =
     fun next ctx ->
         task {
-            let total = Database.getTotalPlati()
-            return! json {| totalPlati = total |} next ctx
+            try
+                let total = Database.getTotalPlati()
+                printfn "Total plăți: %d" total
+                return! json {| totalPlati = total |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getTotalPlati: %s" ex.Message
+                return! json {| error = ex.Message |} next ctx
+        }
+
+let platiPerLunaHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let apartamente = Database.getPlatiPerLuna()
+                printfn "Plăți per lună: %A" apartamente
+                return! json {| apartamente = apartamente |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getPlatiPerLuna: %s" ex.Message
+                return! json {| error = ex.Message; apartamente = [] |} next ctx
         }
 
 let ResidentsHandler : HttpHandler =
@@ -80,6 +111,7 @@ let webApp =
         GET >=> route "/cheltuieli/getTotalApartments" >=> totalApartmentsHandler
         GET >=> route "/cheltuieli/getTotalLocatari" >=> totalLocatariHandler
         GET >=> route "/cheltuieli/getTotalPlati" >=> totalPlatiHandler
+        GET >=> route "/cheltuieli/getPlatiPerLuna" >=> platiPerLunaHandler
         GET >=> route "/locatari/getResidents" >=> ResidentsHandler
         POST >=> route "/locatari/add" >=> addResidentsHandler
         POST >=> route "/locatari/update" >=> updateResidentsHandler
@@ -97,16 +129,16 @@ let configureServices (services: IServiceCollection) =
         builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader() |> ignore)
     ) |> ignore
 
-
 [<EntryPoint>]
 let main args =
+    printfn "Pornesc serverul pe portul 5176..."
     Host.CreateDefaultBuilder(args)
         .ConfigureWebHostDefaults(fun webHostBuilder ->
             webHostBuilder
+                .UseUrls("http://localhost:5176")
                 .Configure(configureApp)
                 .ConfigureServices(configureServices)
                 |> ignore)
         .Build()
         .Run()
     0
-
