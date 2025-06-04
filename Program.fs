@@ -340,7 +340,7 @@ let deleteServiciuHandler : HttpHandler =
                 return! json {| success = false; error = ex.Message |} next ctx
         }
 
-// ===== HANDLER-URI PENTRU PLĂȚI =====
+// ===== HANDLER-URI PENTRU PLĂȚI (FĂRĂ DELETE) =====
 
 let getAllPlatiHandler : HttpHandler =
     fun next ctx ->
@@ -416,26 +416,7 @@ let updatePlataHandler : HttpHandler =
                 return! json {| success = false; error = ex.Message |} next ctx
         }
 
-let deletePlataHandler : HttpHandler =
-    fun next ctx ->
-        task {
-            try
-                let! data = ctx.BindJsonAsync<{| id: string |}>()
-                printfn "=== Request ștergere plată ==="
-                printfn "ID plată: %s" data.id
-                
-                if String.IsNullOrWhiteSpace(data.id) then
-                    return! json {| success = false; error = "ID-ul plății este obligatoriu" |} next ctx
-                else
-                    Database.deletePlata data.id
-                    printfn "Plată ștearsă cu succes"
-                    return! json {| success = true; message = "Plată ștearsă cu succes" |} next ctx
-            with
-            | ex ->
-                printfn "Eroare deletePlata: %s" ex.Message
-                printfn "Stack trace: %s" ex.StackTrace
-                return! json {| success = false; error = ex.Message |} next ctx
-        }
+// ELIMINAT deletePlataHandler - nu mai există funcționalitatea de ștergere pentru plăți
 
 let webApp =
     choose [
@@ -459,11 +440,11 @@ let webApp =
         POST >=> route "/servicii/add" >=> addServiciuHandler
         POST >=> route "/servicii/update" >=> updateServiciuHandler
         POST >=> route "/servicii/delete" >=> deleteServiciuHandler
-        // Endpoint-uri pentru plăți
+        // Endpoint-uri pentru plăți (FĂRĂ DELETE)
         GET >=> route "/plati/getAll" >=> getAllPlatiHandler
         POST >=> route "/plati/add" >=> addPlataHandler
         POST >=> route "/plati/update" >=> updatePlataHandler
-        POST >=> route "/plati/delete" >=> deletePlataHandler
+        // ELIMINAT: POST >=> route "/plati/delete" >=> deletePlataHandler
     ]
 
 let configureApp (app: IApplicationBuilder) =
@@ -502,11 +483,10 @@ let main args =
     printfn "  POST /locatari/add"
     printfn "  POST /locatari/update"
     printfn "  POST /locatari/delete"
-    printfn "  === PLĂȚI ==="
+    printfn "  === PLĂȚI (FĂRĂ DELETE) ==="
     printfn "  GET  /plati/getAll"
     printfn "  POST /plati/add"
     printfn "  POST /plati/update"
-    printfn "  POST /plati/delete"
     Host.CreateDefaultBuilder(args)
         .ConfigureWebHostDefaults(fun webHostBuilder ->
             webHostBuilder

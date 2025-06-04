@@ -476,7 +476,7 @@ let deleteServiciu (id: string) =
         printfn "Stack trace: %s" ex.StackTrace
         reraise()
 
-// ===== FUNCȚII PENTRU PLĂȚI =====
+// ===== FUNCȚII PENTRU PLĂȚI (FĂRĂ DELETE) =====
 
 let getAllPlati() =
     try
@@ -582,22 +582,5 @@ let updatePlata (id: string) (plata: Plata) =
     with
     | ex ->
         printfn "Eroare în updatePlata: %s" ex.Message
-        printfn "Stack trace: %s" ex.StackTrace
-        reraise()
-
-let deletePlata (id: string) =
-    try
-        use conn = new MySqlConnection(connectionString)
-        conn.Open()
-        let query = "DELETE FROM Plati WHERE id_plata = @id_plata"
-        use cmd = new MySqlCommand(query, conn)
-        cmd.Parameters.AddWithValue("@id_plata", id) |> ignore
-        
-        printfn "Ștergere plată cu ID: %s" id
-        let rowsAffected = cmd.ExecuteNonQuery()
-        printfn "Rânduri afectate: %d" rowsAffected
-    with
-    | ex ->
-        printfn "Eroare în deletePlata: %s" ex.Message
         printfn "Stack trace: %s" ex.StackTrace
         reraise()
