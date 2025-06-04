@@ -340,6 +340,103 @@ let deleteServiciuHandler : HttpHandler =
                 return! json {| success = false; error = ex.Message |} next ctx
         }
 
+// ===== HANDLER-URI PENTRU PLĂȚI =====
+
+let getAllPlatiHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                printfn "=== Încărcare plăți ==="
+                let plati = Database.getAllPlati()
+                printfn "Plăți găsite: %d" (List.length plati)
+                printfn "Plăți: %A" plati
+                return! json {| plati = plati |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getAllPlati: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| error = ex.Message; plati = [] |} next ctx
+        }
+
+let addPlataHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! plata = ctx.BindJsonAsync<Plata>()
+                printfn "=== Request adăugare plată ==="
+                printfn "Plată primită: %A" plata
+                
+                // Validare de bază
+                if String.IsNullOrWhiteSpace(plata.idApartament) then
+                    return! json {| success = false; error = "Apartamentul este obligatoriu" |} next ctx
+                elif String.IsNullOrWhiteSpace(plata.idServiciu) then
+                    return! json {| success = false; error = "Serviciul este obligatoriu" |} next ctx
+                elif plata.suma <= 0.0 then
+                    return! json {| success = false; error = "Suma trebuie să fie pozitivă" |} next ctx
+                elif String.IsNullOrWhiteSpace(plata.luna) then
+                    return! json {| success = false; error = "Luna este obligatorie" |} next ctx
+                else
+                    let idGenerat = Database.addPlata plata
+                    printfn "Plată adăugată cu succes cu ID: %s" idGenerat
+                    return! json {| success = true; message = "Plată adăugată cu succes"; id = idGenerat |} next ctx
+            with
+            | ex ->
+                printfn "Eroare addPlata: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
+let updatePlataHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! data = ctx.BindJsonAsync<{| id: string; plata: Plata |}>()
+                printfn "=== Request editare plată ==="
+                printfn "Date primite: %A" data
+                
+                // Validare de bază
+                if String.IsNullOrWhiteSpace(data.id) then
+                    return! json {| success = false; error = "ID-ul plății este obligatoriu" |} next ctx
+                elif String.IsNullOrWhiteSpace(data.plata.idApartament) then
+                    return! json {| success = false; error = "Apartamentul este obligatoriu" |} next ctx
+                elif String.IsNullOrWhiteSpace(data.plata.idServiciu) then
+                    return! json {| success = false; error = "Serviciul este obligatoriu" |} next ctx
+                elif data.plata.suma <= 0.0 then
+                    return! json {| success = false; error = "Suma trebuie să fie pozitivă" |} next ctx
+                elif String.IsNullOrWhiteSpace(data.plata.luna) then
+                    return! json {| success = false; error = "Luna este obligatorie" |} next ctx
+                else
+                    Database.updatePlata data.id data.plata
+                    printfn "Plată editată cu succes"
+                    return! json {| success = true; message = "Plată editată cu succes" |} next ctx
+            with
+            | ex ->
+                printfn "Eroare updatePlata: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
+let deletePlataHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! data = ctx.BindJsonAsync<{| id: string |}>()
+                printfn "=== Request ștergere plată ==="
+                printfn "ID plată: %s" data.id
+                
+                if String.IsNullOrWhiteSpace(data.id) then
+                    return! json {| success = false; error = "ID-ul plății este obligatoriu" |} next ctx
+                else
+                    Database.deletePlata data.id
+                    printfn "Plată ștearsă cu succes"
+                    return! json {| success = true; message = "Plată ștearsă cu succes" |} next ctx
+            with
+            | ex ->
+                printfn "Eroare deletePlata: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
 let webApp =
     choose [
         route "/" >=> htmlFile "index.html"
@@ -357,11 +454,16 @@ let webApp =
         GET >=> route "/apartamente/getAll" >=> getAllApartmentsHandler
         POST >=> route "/apartamente/add" >=> addApartmentHandler
         POST >=> route "/apartamente/update" >=> updateApartmentHandler
-        // Endpoint-uri pentru servicii (FĂRĂ DELETE)
+        // Endpoint-uri pentru servicii
         GET >=> route "/servicii/getAll" >=> getAllServiciiHandler
         POST >=> route "/servicii/add" >=> addServiciuHandler
         POST >=> route "/servicii/update" >=> updateServiciuHandler
         POST >=> route "/servicii/delete" >=> deleteServiciuHandler
+        // Endpoint-uri pentru plăți
+        GET >=> route "/plati/getAll" >=> getAllPlatiHandler
+        POST >=> route "/plati/add" >=> addPlataHandler
+        POST >=> route "/plati/update" >=> updatePlataHandler
+        POST >=> route "/plati/delete" >=> deletePlataHandler
     ]
 
 let configureApp (app: IApplicationBuilder) =
@@ -400,6 +502,11 @@ let main args =
     printfn "  POST /locatari/add"
     printfn "  POST /locatari/update"
     printfn "  POST /locatari/delete"
+    printfn "  === PLĂȚI ==="
+    printfn "  GET  /plati/getAll"
+    printfn "  POST /plati/add"
+    printfn "  POST /plati/update"
+    printfn "  POST /plati/delete"
     Host.CreateDefaultBuilder(args)
         .ConfigureWebHostDefaults(fun webHostBuilder ->
             webHostBuilder

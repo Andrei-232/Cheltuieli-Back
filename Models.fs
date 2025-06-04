@@ -26,3 +26,10 @@ type Serviciu = {
     nume: string
     cod: string
 }
+
+type Plata = {
+    idApartament: string
+    idServiciu: string
+    suma: float
+    luna: string
+}

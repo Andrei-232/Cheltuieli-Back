@@ -475,3 +475,129 @@ let deleteServiciu (id: string) =
         printfn "Eroare în deleteServiciu: %s" ex.Message
         printfn "Stack trace: %s" ex.StackTrace
         reraise()
+
+// ===== FUNCȚII PENTRU PLĂȚI =====
+
+let getAllPlati() =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+
+        // JOIN cu tabela Apartamente și Servicii pentru a obține denumirile
+        let query = """
+            SELECT p.id_plata, p.id_apartament, p.id_serviciu, p.suma, p.luna,
+                   a.numar as numar_apartament, s.nume_serviciu
+            FROM Plati p
+            LEFT JOIN Apartamente a ON p.id_apartament = a.id_apartament
+            LEFT JOIN Servicii s ON p.id_serviciu = s.id_serviciu
+            ORDER BY p.luna DESC, a.numar;
+        """
+        use cmd = new MySqlCommand(query, conn)
+        use reader = cmd.ExecuteReader()
+
+        let results = ResizeArray<{| id: string; idApartament: string; idServiciu: string; suma: float; luna: string; numarApartament: int option; numeServiciu: string option |}>()
+
+        while reader.Read() do
+            let numarApartament = 
+                if reader.IsDBNull("numar_apartament") then None
+                else Some (reader.GetInt32("numar_apartament"))
+            
+            let numeServiciu = 
+                if reader.IsDBNull("nume_serviciu") then None
+                else Some (reader.GetString("nume_serviciu"))
+
+            results.Add({|
+                id = reader.GetString("id_plata")
+                idApartament = reader.GetString("id_apartament")
+                idServiciu = reader.GetString("id_serviciu")
+                suma = reader.GetDecimal("suma") |> float
+                luna = reader.GetString("luna")
+                numarApartament = numarApartament
+                numeServiciu = numeServiciu
+            |})
+
+        printfn "Plăți găsite: %d" (results.Count)
+        results |> List.ofSeq
+    with
+    | ex ->
+        printfn "Eroare în getAllPlati: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        []
+
+let generatePlataId() =
+    "plata_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
+
+let addPlata (plata: Plata) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        
+        // Generează un ID unic pentru plată
+        let idPlata = generatePlataId()
+        
+        let query = """
+            INSERT INTO Plati (id_plata, id_apartament, id_serviciu, suma, luna) 
+            VALUES (@id_plata, @id_apartament, @id_serviciu, @suma, @luna)
+        """
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_plata", idPlata) |> ignore
+        cmd.Parameters.AddWithValue("@id_apartament", plata.idApartament) |> ignore
+        cmd.Parameters.AddWithValue("@id_serviciu", plata.idServiciu) |> ignore
+        cmd.Parameters.AddWithValue("@suma", plata.suma) |> ignore
+        cmd.Parameters.AddWithValue("@luna", plata.luna) |> ignore
+        
+        printfn "Executare query INSERT pentru plată: %s" query
+        printfn "Parametri: ID=%s, Apartament=%s, Serviciu=%s, Suma=%f, Luna=%s" 
+                idPlata plata.idApartament plata.idServiciu plata.suma plata.luna
+        
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Plată adăugată cu succes. Rânduri afectate: %d" rowsAffected
+        idPlata // Returnează ID-ul generat
+    with
+    | ex ->
+        printfn "Eroare detaliată în addPlata: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()
+
+let updatePlata (id: string) (plata: Plata) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = """
+            UPDATE Plati 
+            SET id_apartament = @id_apartament, id_serviciu = @id_serviciu, 
+                suma = @suma, luna = @luna 
+            WHERE id_plata = @id_plata
+        """
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_plata", id) |> ignore
+        cmd.Parameters.AddWithValue("@id_apartament", plata.idApartament) |> ignore
+        cmd.Parameters.AddWithValue("@id_serviciu", plata.idServiciu) |> ignore
+        cmd.Parameters.AddWithValue("@suma", plata.suma) |> ignore
+        cmd.Parameters.AddWithValue("@luna", plata.luna) |> ignore
+        
+        printfn "Editare plată cu ID: %s" id
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în updatePlata: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()
+
+let deletePlata (id: string) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = "DELETE FROM Plati WHERE id_plata = @id_plata"
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_plata", id) |> ignore
+        
+        printfn "Ștergere plată cu ID: %s" id
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în deletePlata: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()
