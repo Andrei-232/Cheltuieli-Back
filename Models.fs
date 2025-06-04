@@ -21,3 +21,8 @@ type Apartament = {
     incalzireCentralizata: bool
     incalzireAutonoma: bool
 }
+
+type Serviciu = {
+    nume: string
+    cod: string
+}

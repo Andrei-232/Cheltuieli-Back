@@ -369,3 +369,109 @@ let updateApartment (id: string) (apartament: Apartament) =
         printfn "Eroare în updateApartment: %s" ex.Message
         printfn "Stack trace: %s" ex.StackTrace
         reraise()
+
+// ===== FUNCȚII PENTRU SERVICII =====
+
+let getAllServicii() =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+
+        // Folosesc numele exacte ale coloanelor din schema ta
+        let query = """
+            SELECT id_serviciu, nume_serviciu, cod_serviciu
+            FROM Servicii 
+            ORDER BY nume_serviciu;
+        """
+        use cmd = new MySqlCommand(query, conn)
+        use reader = cmd.ExecuteReader()
+
+        let results = ResizeArray<{| id: string; nume: string; cod: string |}>()
+
+        while reader.Read() do
+            results.Add({|
+                id = reader.GetString("id_serviciu")
+                nume = reader.GetString("nume_serviciu")
+                cod = reader.GetString("cod_serviciu")
+            |})
+
+        printfn "Servicii găsite: %d" (results.Count)
+        results |> List.ofSeq
+    with
+    | ex ->
+        printfn "Eroare în getAllServicii: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        []
+
+let generateServiciuId() =
+    "serv_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
+
+let addServiciu (serviciu: Serviciu) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        
+        // Generează un ID unic pentru serviciu
+        let idServiciu = generateServiciuId()
+        
+        // Query cu numele exacte ale coloanelor
+        let query = """
+            INSERT INTO Servicii (id_serviciu, nume_serviciu, cod_serviciu) 
+            VALUES (@id_serviciu, @nume_serviciu, @cod_serviciu)
+        """
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_serviciu", idServiciu) |> ignore
+        cmd.Parameters.AddWithValue("@nume_serviciu", serviciu.nume) |> ignore
+        cmd.Parameters.AddWithValue("@cod_serviciu", serviciu.cod) |> ignore
+        
+        printfn "Executare query INSERT pentru serviciu: %s" query
+        printfn "Parametri: ID=%s, Nume=%s, Cod=%s" idServiciu serviciu.nume serviciu.cod
+        
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Serviciu adăugat cu succes. Rânduri afectate: %d" rowsAffected
+        idServiciu // Returnează ID-ul generat
+    with
+    | ex ->
+        printfn "Eroare detaliată în addServiciu: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()
+
+let updateServiciu (id: string) (serviciu: Serviciu) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = """
+            UPDATE Servicii 
+            SET nume_serviciu = @nume_serviciu, cod_serviciu = @cod_serviciu 
+            WHERE id_serviciu = @id_serviciu
+        """
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_serviciu", id) |> ignore
+        cmd.Parameters.AddWithValue("@nume_serviciu", serviciu.nume) |> ignore
+        cmd.Parameters.AddWithValue("@cod_serviciu", serviciu.cod) |> ignore
+        
+        printfn "Editare serviciu cu ID: %s" id
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în updateServiciu: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()
+
+let deleteServiciu (id: string) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = "DELETE FROM Servicii WHERE id_serviciu = @id_serviciu"
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_serviciu", id) |> ignore
+        
+        printfn "Ștergere serviciu cu ID: %s" id
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în deleteServiciu: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()

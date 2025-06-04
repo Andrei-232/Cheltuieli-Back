@@ -251,7 +251,94 @@ let updateApartmentHandler : HttpHandler =
                 return! json {| success = false; error = ex.Message |} next ctx
         }
 
-// HANDLER-UL DE ȘTERGERE A FOST ELIMINAT
+// ===== HANDLER-URI PENTRU SERVICII =====
+
+let getAllServiciiHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                printfn "=== Încărcare servicii ==="
+                let servicii = Database.getAllServicii()
+                printfn "Servicii găsite: %d" (List.length servicii)
+                printfn "Servicii: %A" servicii
+                return! json {| servicii = servicii |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getAllServicii: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| error = ex.Message; servicii = [] |} next ctx
+        }
+
+let addServiciuHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! serviciu = ctx.BindJsonAsync<Serviciu>()
+                printfn "=== Request adăugare serviciu ==="
+                printfn "Serviciu primit: %A" serviciu
+                
+                // Validare de bază
+                if String.IsNullOrWhiteSpace(serviciu.nume) then
+                    return! json {| success = false; error = "Numele serviciului este obligatoriu" |} next ctx
+                elif String.IsNullOrWhiteSpace(serviciu.cod) then
+                    return! json {| success = false; error = "Codul serviciului este obligatoriu" |} next ctx
+                else
+                    let idGenerat = Database.addServiciu serviciu
+                    printfn "Serviciu adăugat cu succes cu ID: %s" idGenerat
+                    return! json {| success = true; message = "Serviciu adăugat cu succes"; id = idGenerat |} next ctx
+            with
+            | ex ->
+                printfn "Eroare addServiciu: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
+let updateServiciuHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! data = ctx.BindJsonAsync<{| id: string; serviciu: Serviciu |}>()
+                printfn "=== Request editare serviciu ==="
+                printfn "Date primite: %A" data
+                
+                // Validare de bază
+                if String.IsNullOrWhiteSpace(data.id) then
+                    return! json {| success = false; error = "ID-ul serviciului este obligatoriu" |} next ctx
+                elif String.IsNullOrWhiteSpace(data.serviciu.nume) then
+                    return! json {| success = false; error = "Numele serviciului este obligatoriu" |} next ctx
+                elif String.IsNullOrWhiteSpace(data.serviciu.cod) then
+                    return! json {| success = false; error = "Codul serviciului este obligatoriu" |} next ctx
+                else
+                    Database.updateServiciu data.id data.serviciu
+                    printfn "Serviciu editat cu succes"
+                    return! json {| success = true; message = "Serviciu editat cu succes" |} next ctx
+            with
+            | ex ->
+                printfn "Eroare updateServiciu: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
+let deleteServiciuHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! data = ctx.BindJsonAsync<{| id: string |}>()
+                printfn "=== Request ștergere serviciu ==="
+                printfn "ID serviciu: %s" data.id
+                
+                if String.IsNullOrWhiteSpace(data.id) then
+                    return! json {| success = false; error = "ID-ul serviciului este obligatoriu" |} next ctx
+                else
+                    Database.deleteServiciu data.id
+                    printfn "Serviciu șters cu succes"
+                    return! json {| success = true; message = "Serviciu șters cu succes" |} next ctx
+            with
+            | ex ->
+                printfn "Eroare deleteServiciu: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
 
 let webApp =
     choose [
@@ -270,7 +357,11 @@ let webApp =
         GET >=> route "/apartamente/getAll" >=> getAllApartmentsHandler
         POST >=> route "/apartamente/add" >=> addApartmentHandler
         POST >=> route "/apartamente/update" >=> updateApartmentHandler
-        // DELETE endpoint eliminat
+        // Endpoint-uri pentru servicii (FĂRĂ DELETE)
+        GET >=> route "/servicii/getAll" >=> getAllServiciiHandler
+        POST >=> route "/servicii/add" >=> addServiciuHandler
+        POST >=> route "/servicii/update" >=> updateServiciuHandler
+        POST >=> route "/servicii/delete" >=> deleteServiciuHandler
     ]
 
 let configureApp (app: IApplicationBuilder) =
@@ -294,11 +385,21 @@ let configureServices (services: IServiceCollection) =
 let main args =
     printfn "=== Pornesc serverul pe portul 5176 ==="
     printfn "CORS configurat pentru toate originile"
-    printfn "Endpoint-uri apartamente disponibile:"
+    printfn "Endpoint-uri disponibile:"
+    printfn "  === APARTAMENTE ==="
     printfn "  GET  /apartamente/getAll"
     printfn "  POST /apartamente/add"
     printfn "  POST /apartamente/update"
-    printfn "  DELETE /apartamente/delete - ELIMINAT"
+    printfn "  === SERVICII ==="
+    printfn "  GET  /servicii/getAll"
+    printfn "  POST /servicii/add"
+    printfn "  POST /servicii/update"
+    printfn "  POST /servicii/delete"
+    printfn "  === LOCATARI ==="
+    printfn "  GET  /locatari/getResidents"
+    printfn "  POST /locatari/add"
+    printfn "  POST /locatari/update"
+    printfn "  POST /locatari/delete"
     Host.CreateDefaultBuilder(args)
         .ConfigureWebHostDefaults(fun webHostBuilder ->
             webHostBuilder
