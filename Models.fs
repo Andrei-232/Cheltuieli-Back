@@ -1,4 +1,4 @@
-namespace Models
+module Models
 
 type LoginData = {
     username: string
@@ -13,3 +13,11 @@ type Locatar = {
     apartament: string
 }
 
+type Apartament = {
+    numar: int
+    etaj: int
+    suprafata: float
+    numarCamere: int
+    incalzireCentralizata: bool
+    incalzireAutonoma: bool
+}

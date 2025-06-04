@@ -126,105 +126,246 @@ let getPlatiPerLuna() =
         printfn "Eroare în getPlatiPerLuna: %s" ex.Message
         []
 
-// Funcție nouă pentru a obține lista apartamentelor pentru dropdown
+// Funcție pentru a obține lista apartamentelor pentru dropdown
 let getApartments() =
-    use conn = new MySqlConnection(connectionString)
-    conn.Open()
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
 
-    let query = "SELECT id_apartament, numar FROM Apartamente ORDER BY numar;"
-    use cmd = new MySqlCommand(query, conn)
-    use reader = cmd.ExecuteReader()
+        let query = "SELECT id_apartament, numar FROM Apartamente ORDER BY numar;"
+        use cmd = new MySqlCommand(query, conn)
+        use reader = cmd.ExecuteReader()
 
-    let results = ResizeArray<{| id: string; numar: int |}>()
+        let results = ResizeArray<{| id: string; numar: int |}>()
 
-    while reader.Read() do
-        results.Add({|
-            id = reader.GetString("id_apartament")
-            numar = reader.GetInt32("numar")
-        |})
+        while reader.Read() do
+            results.Add({|
+                id = reader.GetString("id_apartament")
+                numar = reader.GetInt32("numar")
+            |})
 
-    results |> List.ofSeq
+        printfn "Apartamente găsite: %d" (results.Count)
+        results |> List.ofSeq
+    with
+    | ex ->
+        printfn "Eroare în getApartments: %s" ex.Message
+        []
 
 let getResidents () =
-    use conn = new MySqlConnection(connectionString)
-    conn.Open()
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
 
-    // JOIN cu tabela Apartamente pentru a obține numărul apartamentului
-    let query = """
-        SELECT l.id_locatar, l.Nume, l.CNP, l.Varsta, l.Pensionar, l.id_apartament, a.numar as numar_apartament
-        FROM Locatari l
-        LEFT JOIN Apartamente a ON l.id_apartament = a.id_apartament
-        ORDER BY l.Nume;
-    """
-    use cmd = new MySqlCommand(query, conn)
-    use reader = cmd.ExecuteReader()
+        // JOIN cu tabela Apartamente pentru a obține numărul apartamentului
+        let query = """
+            SELECT l.id_locatar, l.Nume, l.CNP, l.Varsta, l.Pensionar, l.id_apartament, a.numar as numar_apartament
+            FROM Locatari l
+            LEFT JOIN Apartamente a ON l.id_apartament = a.id_apartament
+            ORDER BY l.Nume;
+        """
+        use cmd = new MySqlCommand(query, conn)
+        use reader = cmd.ExecuteReader()
 
-    let results = ResizeArray<{| nume: string; cnp: string; varsta: int; pensionar: bool; apartament: string; numarApartament: int option |}>()
+        let results = ResizeArray<{| nume: string; cnp: string; varsta: int; pensionar: bool; apartament: string; numarApartament: int option |}>()
 
-    while reader.Read() do
-        let numarApartament = 
-            if reader.IsDBNull("numar_apartament") then 
-                None 
-            else 
-                Some (reader.GetInt32("numar_apartament"))
-        
-        results.Add({|
-            nume = reader.GetString("Nume")
-            cnp = reader.GetString("CNP")
-            varsta = reader.GetInt32("Varsta")
-            pensionar = reader.GetBoolean("Pensionar")
-            apartament = reader.GetString("id_apartament")
-            numarApartament = numarApartament
-        |})
+        while reader.Read() do
+            let numarApartament = 
+                if reader.IsDBNull("numar_apartament") then 
+                    None 
+                else 
+                    Some (reader.GetInt32("numar_apartament"))
+            
+            results.Add({|
+                nume = reader.GetString("Nume")
+                cnp = reader.GetString("CNP")
+                varsta = reader.GetInt32("Varsta")
+                pensionar = reader.GetBoolean("Pensionar")
+                apartament = reader.GetString("id_apartament")
+                numarApartament = numarApartament
+            |})
 
-    results |> List.ofSeq
+        printfn "Locatari găsiți: %d" (results.Count)
+        results |> List.ofSeq
+    with
+    | ex ->
+        printfn "Eroare în getResidents: %s" ex.Message
+        []
 
 // Funcție pentru generarea unui ID unic
 let generateLocatarId() =
     "loc_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
 
 let addLocatar (locatar: Locatar) =
-    use conn = new MySqlConnection(connectionString)
-    conn.Open()
-    
-    // Generează un ID unic pentru locatar
-    let idLocatar = "loc_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
-    
-    let query = "INSERT INTO Locatari (id_locatar, Nume, CNP, Varsta, Pensionar, id_apartament) VALUES (@id_locatar, @nume, @cnp, @varsta, @pensionar, @apartament)"
-    use cmd = new MySqlCommand(query, conn)
-    cmd.Parameters.AddWithValue("@id_locatar", idLocatar) |> ignore
-    cmd.Parameters.AddWithValue("@nume", locatar.nume) |> ignore
-    cmd.Parameters.AddWithValue("@cnp", locatar.cnp) |> ignore
-    cmd.Parameters.AddWithValue("@varsta", locatar.varsta) |> ignore
-    cmd.Parameters.AddWithValue("@pensionar", locatar.pensionar) |> ignore
-    cmd.Parameters.AddWithValue("@apartament", locatar.apartament) |> ignore
-    
-    printfn "Adăugare locatar cu ID generat automat: %s, Nume: %s, CNP: %s" idLocatar locatar.nume locatar.cnp
-    cmd.ExecuteNonQuery() |> ignore
-    idLocatar // Returnează ID-ul generat
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        
+        // Generează un ID unic pentru locatar
+        let idLocatar = "loc_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
+        
+        let query = "INSERT INTO Locatari (id_locatar, Nume, CNP, Varsta, Pensionar, id_apartament) VALUES (@id_locatar, @nume, @cnp, @varsta, @pensionar, @apartament)"
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_locatar", idLocatar) |> ignore
+        cmd.Parameters.AddWithValue("@nume", locatar.nume) |> ignore
+        cmd.Parameters.AddWithValue("@cnp", locatar.cnp) |> ignore
+        cmd.Parameters.AddWithValue("@varsta", locatar.varsta) |> ignore
+        cmd.Parameters.AddWithValue("@pensionar", locatar.pensionar) |> ignore
+        cmd.Parameters.AddWithValue("@apartament", locatar.apartament) |> ignore
+        
+        printfn "Adăugare locatar cu ID generat automat: %s, Nume: %s, CNP: %s" idLocatar locatar.nume locatar.cnp
+        cmd.ExecuteNonQuery() |> ignore
+        idLocatar // Returnează ID-ul generat
+    with
+    | ex ->
+        printfn "Eroare în addLocatar: %s" ex.Message
+        reraise()
 
 let updateLocatar (locatar: Locatar) =
-    use conn = new MySqlConnection(connectionString)
-    conn.Open()
-    let query = "UPDATE Locatari SET Nume = @nume, Varsta = @varsta, Pensionar = @pensionar, id_apartament = @apartament WHERE CNP = @cnp"
-    use cmd = new MySqlCommand(query, conn)
-    cmd.Parameters.AddWithValue("@nume", locatar.nume) |> ignore
-    cmd.Parameters.AddWithValue("@cnp", locatar.cnp) |> ignore
-    cmd.Parameters.AddWithValue("@varsta", locatar.varsta) |> ignore
-    cmd.Parameters.AddWithValue("@pensionar", locatar.pensionar) |> ignore
-    cmd.Parameters.AddWithValue("@apartament", locatar.apartament) |> ignore
-    
-    printfn "Editare locatar cu CNP: %s" locatar.cnp
-    let rowsAffected = cmd.ExecuteNonQuery()
-    printfn "Rânduri afectate: %d" rowsAffected
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = "UPDATE Locatari SET Nume = @nume, Varsta = @varsta, Pensionar = @pensionar, id_apartament = @apartament WHERE CNP = @cnp"
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@nume", locatar.nume) |> ignore
+        cmd.Parameters.AddWithValue("@cnp", locatar.cnp) |> ignore
+        cmd.Parameters.AddWithValue("@varsta", locatar.varsta) |> ignore
+        cmd.Parameters.AddWithValue("@pensionar", locatar.pensionar) |> ignore
+        cmd.Parameters.AddWithValue("@apartament", locatar.apartament) |> ignore
+        
+        printfn "Editare locatar cu CNP: %s" locatar.cnp
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în updateLocatar: %s" ex.Message
+        reraise()
 
 let deleteLocatar (cnp: string) =
-    use conn = new MySqlConnection(connectionString)
-    conn.Open()
-    let query = "DELETE FROM Locatari WHERE CNP = @cnp"
-    use cmd = new MySqlCommand(query, conn)
-    cmd.Parameters.AddWithValue("@cnp", cnp) |> ignore
-    
-    printfn "Ștergere locatar cu CNP: %s" cnp
-    let rowsAffected = cmd.ExecuteNonQuery()
-    printfn "Rânduri afectate: %d" rowsAffected
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = "DELETE FROM Locatari WHERE CNP = @cnp"
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@cnp", cnp) |> ignore
+        
+        printfn "Ștergere locatar cu CNP: %s" cnp
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în deleteLocatar: %s" ex.Message
+        reraise()
+
+// ===== FUNCȚII PENTRU APARTAMENTE =====
+
+let getAllApartments() =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+
+        // Folosesc numele exacte ale coloanelor din schema ta
+        let query = """
+            SELECT id_apartament, numar, etaj, suprafata, numarul_camere, 
+                   COALESCE(incalzire_centralizata, 0) as incalzire_centralizata, 
+                   COALESCE(incalzire_autonoma, 0) as incalzire_autonoma
+            FROM Apartamente 
+            ORDER BY numar;
+        """
+        use cmd = new MySqlCommand(query, conn)
+        use reader = cmd.ExecuteReader()
+
+        let results = ResizeArray<{| id: string; numar: int; etaj: int; suprafata: string; numarCamere: int; incalzireCentralizata: bool; incalzireAutonoma: bool |}>()
+
+        while reader.Read() do
+            let incalzireCentralizata = 
+                if reader.IsDBNull("incalzire_centralizata") then false
+                else reader.GetBoolean("incalzire_centralizata")
+            
+            let incalzireAutonoma = 
+                if reader.IsDBNull("incalzire_autonoma") then false
+                else reader.GetBoolean("incalzire_autonoma")
+
+            results.Add({|
+                id = reader.GetString("id_apartament")
+                numar = reader.GetInt32("numar")
+                etaj = reader.GetInt32("etaj")
+                suprafata = reader.GetString("suprafata") // CHAR(222) - string
+                numarCamere = reader.GetInt32("numarul_camere")
+                incalzireCentralizata = incalzireCentralizata
+                incalzireAutonoma = incalzireAutonoma
+            |})
+
+        printfn "Apartamente găsite: %d" (results.Count)
+        results |> List.ofSeq
+    with
+    | ex ->
+        printfn "Eroare în getAllApartments: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        []
+
+let generateApartmentId() =
+    "ap_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
+
+let addApartment (apartament: Apartament) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        
+        // Generează un ID unic pentru apartament
+        let idApartament = generateApartmentId()
+        
+        // Query cu numele exacte ale coloanelor și bloc = NULL
+        let query = """
+            INSERT INTO Apartamente (id_apartament, numar, etaj, suprafata, numarul_camere, bloc, incalzire_centralizata, incalzire_autonoma) 
+            VALUES (@id_apartament, @numar, @etaj, @suprafata, @numarul_camere, NULL, @incalzire_centralizata, @incalzire_autonoma)
+        """
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_apartament", idApartament) |> ignore
+        cmd.Parameters.AddWithValue("@numar", apartament.numar) |> ignore
+        cmd.Parameters.AddWithValue("@etaj", apartament.etaj) |> ignore
+        cmd.Parameters.AddWithValue("@suprafata", apartament.suprafata.ToString()) |> ignore // Convert to string pentru CHAR(222)
+        cmd.Parameters.AddWithValue("@numarul_camere", apartament.numarCamere) |> ignore
+        cmd.Parameters.AddWithValue("@incalzire_centralizata", apartament.incalzireCentralizata) |> ignore
+        cmd.Parameters.AddWithValue("@incalzire_autonoma", apartament.incalzireAutonoma) |> ignore
+        
+        printfn "Executare query INSERT pentru apartament: %s" query
+        printfn "Parametri: ID=%s, Numar=%d, Etaj=%d, Suprafata=%f, Camere=%d, Central=%b, Autonom=%b" 
+                idApartament apartament.numar apartament.etaj apartament.suprafata apartament.numarCamere apartament.incalzireCentralizata apartament.incalzireAutonoma
+        
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Apartament adăugat cu succes. Rânduri afectate: %d" rowsAffected
+        idApartament // Returnează ID-ul generat
+    with
+    | ex ->
+        printfn "Eroare detaliată în addApartment: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()
+
+let updateApartment (id: string) (apartament: Apartament) =
+    try
+        use conn = new MySqlConnection(connectionString)
+        conn.Open()
+        let query = """
+            UPDATE Apartamente 
+            SET numar = @numar, etaj = @etaj, suprafata = @suprafata, 
+                numarul_camere = @numarul_camere, incalzire_centralizata = @incalzire_centralizata, 
+                incalzire_autonoma = @incalzire_autonoma 
+            WHERE id_apartament = @id_apartament
+        """
+        use cmd = new MySqlCommand(query, conn)
+        cmd.Parameters.AddWithValue("@id_apartament", id) |> ignore
+        cmd.Parameters.AddWithValue("@numar", apartament.numar) |> ignore
+        cmd.Parameters.AddWithValue("@etaj", apartament.etaj) |> ignore
+        cmd.Parameters.AddWithValue("@suprafata", apartament.suprafata.ToString()) |> ignore // Convert to string pentru CHAR(222)
+        cmd.Parameters.AddWithValue("@numarul_camere", apartament.numarCamere) |> ignore
+        cmd.Parameters.AddWithValue("@incalzire_centralizata", apartament.incalzireCentralizata) |> ignore
+        cmd.Parameters.AddWithValue("@incalzire_autonoma", apartament.incalzireAutonoma) |> ignore
+        
+        printfn "Editare apartament cu ID: %s" id
+        let rowsAffected = cmd.ExecuteNonQuery()
+        printfn "Rânduri afectate: %d" rowsAffected
+    with
+    | ex ->
+        printfn "Eroare în updateApartment: %s" ex.Message
+        printfn "Stack trace: %s" ex.StackTrace
+        reraise()

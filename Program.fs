@@ -175,6 +175,84 @@ let deleteResidentsHandler : HttpHandler =
                 return! json {| success = false; error = ex.Message |} next ctx
         }
 
+// ===== HANDLER-URI PENTRU APARTAMENTE =====
+
+let getAllApartmentsHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                printfn "=== Încărcare apartamente ==="
+                let apartamente = Database.getAllApartments()
+                printfn "Apartamente găsite: %d" (List.length apartamente)
+                printfn "Apartamente: %A" apartamente
+                return! json {| apartamente = apartamente |} next ctx
+            with
+            | ex ->
+                printfn "Eroare getAllApartments: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| error = ex.Message; apartamente = [] |} next ctx
+        }
+
+let addApartmentHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! apartament = ctx.BindJsonAsync<Apartament>()
+                printfn "=== Request adăugare apartament ==="
+                printfn "Apartament primit: %A" apartament
+                
+                // Validare de bază
+                if apartament.numar <= 0 then
+                    return! json {| success = false; error = "Numărul apartamentului trebuie să fie pozitiv" |} next ctx
+                elif apartament.etaj < 0 then
+                    return! json {| success = false; error = "Etajul nu poate fi negativ" |} next ctx
+                elif apartament.suprafata <= 0.0 then
+                    return! json {| success = false; error = "Suprafața trebuie să fie pozitivă" |} next ctx
+                elif apartament.numarCamere <= 0 then
+                    return! json {| success = false; error = "Numărul de camere trebuie să fie pozitiv" |} next ctx
+                else
+                    let idGenerat = Database.addApartment apartament
+                    printfn "Apartament adăugat cu succes cu ID: %s" idGenerat
+                    return! json {| success = true; message = "Apartament adăugat cu succes"; id = idGenerat |} next ctx
+            with
+            | ex ->
+                printfn "Eroare addApartment: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
+let updateApartmentHandler : HttpHandler =
+    fun next ctx ->
+        task {
+            try
+                let! data = ctx.BindJsonAsync<{| id: string; apartament: Apartament |}>()
+                printfn "=== Request editare apartament ==="
+                printfn "Date primite: %A" data
+                
+                // Validare de bază
+                if String.IsNullOrWhiteSpace(data.id) then
+                    return! json {| success = false; error = "ID-ul apartamentului este obligatoriu" |} next ctx
+                elif data.apartament.numar <= 0 then
+                    return! json {| success = false; error = "Numărul apartamentului trebuie să fie pozitiv" |} next ctx
+                elif data.apartament.etaj < 0 then
+                    return! json {| success = false; error = "Etajul nu poate fi negativ" |} next ctx
+                elif data.apartament.suprafata <= 0.0 then
+                    return! json {| success = false; error = "Suprafața trebuie să fie pozitivă" |} next ctx
+                elif data.apartament.numarCamere <= 0 then
+                    return! json {| success = false; error = "Numărul de camere trebuie să fie pozitiv" |} next ctx
+                else
+                    Database.updateApartment data.id data.apartament
+                    printfn "Apartament editat cu succes"
+                    return! json {| success = true; message = "Apartament editat cu succes" |} next ctx
+            with
+            | ex ->
+                printfn "Eroare updateApartment: %s" ex.Message
+                printfn "Stack trace: %s" ex.StackTrace
+                return! json {| success = false; error = ex.Message |} next ctx
+        }
+
+// HANDLER-UL DE ȘTERGERE A FOST ELIMINAT
+
 let webApp =
     choose [
         route "/" >=> htmlFile "index.html"
@@ -188,6 +266,11 @@ let webApp =
         POST >=> route "/locatari/add" >=> addResidentsHandler
         POST >=> route "/locatari/update" >=> updateResidentsHandler
         POST >=> route "/locatari/delete" >=> deleteResidentsHandler
+        // Endpoint-uri pentru apartamente (FĂRĂ DELETE)
+        GET >=> route "/apartamente/getAll" >=> getAllApartmentsHandler
+        POST >=> route "/apartamente/add" >=> addApartmentHandler
+        POST >=> route "/apartamente/update" >=> updateApartmentHandler
+        // DELETE endpoint eliminat
     ]
 
 let configureApp (app: IApplicationBuilder) =
@@ -209,8 +292,13 @@ let configureServices (services: IServiceCollection) =
 
 [<EntryPoint>]
 let main args =
-    printfn "Pornesc serverul pe portul 5176..."
+    printfn "=== Pornesc serverul pe portul 5176 ==="
     printfn "CORS configurat pentru toate originile"
+    printfn "Endpoint-uri apartamente disponibile:"
+    printfn "  GET  /apartamente/getAll"
+    printfn "  POST /apartamente/add"
+    printfn "  POST /apartamente/update"
+    printfn "  DELETE /apartamente/delete - ELIMINAT"
     Host.CreateDefaultBuilder(args)
         .ConfigureWebHostDefaults(fun webHostBuilder ->
             webHostBuilder
