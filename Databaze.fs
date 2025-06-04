@@ -126,38 +126,82 @@ let getPlatiPerLuna() =
         printfn "Eroare în getPlatiPerLuna: %s" ex.Message
         []
 
+// Funcție nouă pentru a obține lista apartamentelor pentru dropdown
+let getApartments() =
+    use conn = new MySqlConnection(connectionString)
+    conn.Open()
+
+    let query = "SELECT id_apartament, numar FROM Apartamente ORDER BY numar;"
+    use cmd = new MySqlCommand(query, conn)
+    use reader = cmd.ExecuteReader()
+
+    let results = ResizeArray<{| id: string; numar: int |}>()
+
+    while reader.Read() do
+        results.Add({|
+            id = reader.GetString("id_apartament")
+            numar = reader.GetInt32("numar")
+        |})
+
+    results |> List.ofSeq
+
 let getResidents () =
     use conn = new MySqlConnection(connectionString)
     conn.Open()
 
-    let query = "SELECT Nume, CNP, Varsta, Pensionar, id_apartament FROM Locatari;"
+    // JOIN cu tabela Apartamente pentru a obține numărul apartamentului
+    let query = """
+        SELECT l.id_locatar, l.Nume, l.CNP, l.Varsta, l.Pensionar, l.id_apartament, a.numar as numar_apartament
+        FROM Locatari l
+        LEFT JOIN Apartamente a ON l.id_apartament = a.id_apartament
+        ORDER BY l.Nume;
+    """
     use cmd = new MySqlCommand(query, conn)
     use reader = cmd.ExecuteReader()
 
-    let results = ResizeArray<Locatar>()
+    let results = ResizeArray<{| nume: string; cnp: string; varsta: int; pensionar: bool; apartament: string; numarApartament: int option |}>()
 
     while reader.Read() do
-        results.Add({
+        let numarApartament = 
+            if reader.IsDBNull("numar_apartament") then 
+                None 
+            else 
+                Some (reader.GetInt32("numar_apartament"))
+        
+        results.Add({|
             nume = reader.GetString("Nume")
             cnp = reader.GetString("CNP")
             varsta = reader.GetInt32("Varsta")
             pensionar = reader.GetBoolean("Pensionar")
             apartament = reader.GetString("id_apartament")
-        })
+            numarApartament = numarApartament
+        |})
 
     results |> List.ofSeq
+
+// Funcție pentru generarea unui ID unic
+let generateLocatarId() =
+    "loc_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
 
 let addLocatar (locatar: Locatar) =
     use conn = new MySqlConnection(connectionString)
     conn.Open()
-    let query = "INSERT INTO Locatari (Nume, CNP, Varsta, Pensionar, id_apartament) VALUES (@nume, @cnp, @varsta, @pensionar, @apartament)"
+    
+    // Generează un ID unic pentru locatar
+    let idLocatar = "loc_" + System.Guid.NewGuid().ToString("N").Substring(0, 8)
+    
+    let query = "INSERT INTO Locatari (id_locatar, Nume, CNP, Varsta, Pensionar, id_apartament) VALUES (@id_locatar, @nume, @cnp, @varsta, @pensionar, @apartament)"
     use cmd = new MySqlCommand(query, conn)
+    cmd.Parameters.AddWithValue("@id_locatar", idLocatar) |> ignore
     cmd.Parameters.AddWithValue("@nume", locatar.nume) |> ignore
     cmd.Parameters.AddWithValue("@cnp", locatar.cnp) |> ignore
     cmd.Parameters.AddWithValue("@varsta", locatar.varsta) |> ignore
     cmd.Parameters.AddWithValue("@pensionar", locatar.pensionar) |> ignore
     cmd.Parameters.AddWithValue("@apartament", locatar.apartament) |> ignore
+    
+    printfn "Adăugare locatar cu ID generat automat: %s, Nume: %s, CNP: %s" idLocatar locatar.nume locatar.cnp
     cmd.ExecuteNonQuery() |> ignore
+    idLocatar // Returnează ID-ul generat
 
 let updateLocatar (locatar: Locatar) =
     use conn = new MySqlConnection(connectionString)
@@ -169,7 +213,10 @@ let updateLocatar (locatar: Locatar) =
     cmd.Parameters.AddWithValue("@varsta", locatar.varsta) |> ignore
     cmd.Parameters.AddWithValue("@pensionar", locatar.pensionar) |> ignore
     cmd.Parameters.AddWithValue("@apartament", locatar.apartament) |> ignore
-    cmd.ExecuteNonQuery() |> ignore
+    
+    printfn "Editare locatar cu CNP: %s" locatar.cnp
+    let rowsAffected = cmd.ExecuteNonQuery()
+    printfn "Rânduri afectate: %d" rowsAffected
 
 let deleteLocatar (cnp: string) =
     use conn = new MySqlConnection(connectionString)
@@ -177,4 +224,7 @@ let deleteLocatar (cnp: string) =
     let query = "DELETE FROM Locatari WHERE CNP = @cnp"
     use cmd = new MySqlCommand(query, conn)
     cmd.Parameters.AddWithValue("@cnp", cnp) |> ignore
-    cmd.ExecuteNonQuery() |> ignore
+    
+    printfn "Ștergere locatar cu CNP: %s" cnp
+    let rowsAffected = cmd.ExecuteNonQuery()
+    printfn "Rânduri afectate: %d" rowsAffected
