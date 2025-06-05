@@ -8,19 +8,16 @@ open FSharp.Control
 open System.Text.Json
 open Giraffe
 open Models
-
 let loginHandler : HttpHandler =
     fun next ctx ->
         task {
             let! data = ctx.BindJsonAsync<LoginData>()
             let isValid = Database.validateUser data.username data.password
-
             if isValid then
                 return! json {| success = true |} next ctx
             else
                 return! json {| success = false; message = "Utilizator sau parolă greșită!" |} next ctx
         }
-
 let totalApartmentsHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -33,7 +30,6 @@ let totalApartmentsHandler : HttpHandler =
                 printfn "Eroare getTotalApartments: %s" ex.Message
                 return! json {| error = ex.Message |} next ctx
         }
-
 let totalLocatariHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -46,7 +42,6 @@ let totalLocatariHandler : HttpHandler =
                 printfn "Eroare getTotalLocatari: %s" ex.Message
                 return! json {| error = ex.Message |} next ctx
         }
-
 let totalPlatiHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -59,7 +54,6 @@ let totalPlatiHandler : HttpHandler =
                 printfn "Eroare getTotalPlati: %s" ex.Message
                 return! json {| error = ex.Message |} next ctx
         }
-
 let platiPerLunaHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -72,8 +66,6 @@ let platiPerLunaHandler : HttpHandler =
                 printfn "Eroare getPlatiPerLuna: %s" ex.Message
                 return! json {| error = ex.Message; apartamente = [] |} next ctx
         }
-
-// Handler nou pentru lista apartamentelor
 let apartmentsHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -86,7 +78,6 @@ let apartmentsHandler : HttpHandler =
                 printfn "Eroare getApartments: %s" ex.Message
                 return! json {| error = ex.Message; apartamente = [] |} next ctx
         }
-
 let ResidentsHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -99,15 +90,12 @@ let ResidentsHandler : HttpHandler =
                 printfn "Eroare getResidents: %s" ex.Message
                 return! json {| error = ex.Message; locatari = [] |} next ctx
         }
-
 let addResidentsHandler : HttpHandler =
     fun next ctx ->
         task {
             try
                 let! locatar = ctx.BindJsonAsync<Locatar>()
                 printfn "Request adăugare locatar: %A" locatar
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(locatar.nume) then
                     return! json {| success = false; error = "Numele este obligatoriu" |} next ctx
                 elif String.IsNullOrWhiteSpace(locatar.cnp) then
@@ -127,15 +115,12 @@ let addResidentsHandler : HttpHandler =
                 printfn "Eroare addLocatar: %s" ex.Message
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
 let updateResidentsHandler : HttpHandler =
     fun next ctx ->
         task {
             try
                 let! locatar = ctx.BindJsonAsync<Locatar>()
                 printfn "Request editare locatar: %A" locatar
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(locatar.nume) then
                     return! json {| success = false; error = "Numele este obligatoriu" |} next ctx
                 elif String.IsNullOrWhiteSpace(locatar.cnp) then
@@ -155,14 +140,12 @@ let updateResidentsHandler : HttpHandler =
                 printfn "Eroare updateLocatar: %s" ex.Message
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
 let deleteResidentsHandler : HttpHandler =
     fun next ctx ->
         task {
             try
                 let! data = ctx.BindJsonAsync<{| cnp: string |}>()
                 printfn "Request ștergere locatar cu CNP: %s" data.cnp
-                
                 if String.IsNullOrWhiteSpace(data.cnp) then
                     return! json {| success = false; error = "CNP-ul este obligatoriu" |} next ctx
                 else
@@ -174,9 +157,6 @@ let deleteResidentsHandler : HttpHandler =
                 printfn "Eroare deleteLocatar: %s" ex.Message
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
-// ===== HANDLER-URI PENTRU APARTAMENTE =====
-
 let getAllApartmentsHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -192,7 +172,6 @@ let getAllApartmentsHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| error = ex.Message; apartamente = [] |} next ctx
         }
-
 let addApartmentHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -200,8 +179,6 @@ let addApartmentHandler : HttpHandler =
                 let! apartament = ctx.BindJsonAsync<Apartament>()
                 printfn "=== Request adăugare apartament ==="
                 printfn "Apartament primit: %A" apartament
-                
-                // Validare de bază
                 if apartament.numar <= 0 then
                     return! json {| success = false; error = "Numărul apartamentului trebuie să fie pozitiv" |} next ctx
                 elif apartament.etaj < 0 then
@@ -220,7 +197,6 @@ let addApartmentHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
 let updateApartmentHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -228,8 +204,6 @@ let updateApartmentHandler : HttpHandler =
                 let! data = ctx.BindJsonAsync<{| id: string; apartament: Apartament |}>()
                 printfn "=== Request editare apartament ==="
                 printfn "Date primite: %A" data
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(data.id) then
                     return! json {| success = false; error = "ID-ul apartamentului este obligatoriu" |} next ctx
                 elif data.apartament.numar <= 0 then
@@ -250,9 +224,6 @@ let updateApartmentHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
-// ===== HANDLER-URI PENTRU SERVICII =====
-
 let getAllServiciiHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -268,7 +239,6 @@ let getAllServiciiHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| error = ex.Message; servicii = [] |} next ctx
         }
-
 let addServiciuHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -276,8 +246,6 @@ let addServiciuHandler : HttpHandler =
                 let! serviciu = ctx.BindJsonAsync<Serviciu>()
                 printfn "=== Request adăugare serviciu ==="
                 printfn "Serviciu primit: %A" serviciu
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(serviciu.nume) then
                     return! json {| success = false; error = "Numele serviciului este obligatoriu" |} next ctx
                 elif String.IsNullOrWhiteSpace(serviciu.cod) then
@@ -292,7 +260,6 @@ let addServiciuHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
 let updateServiciuHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -300,8 +267,6 @@ let updateServiciuHandler : HttpHandler =
                 let! data = ctx.BindJsonAsync<{| id: string; serviciu: Serviciu |}>()
                 printfn "=== Request editare serviciu ==="
                 printfn "Date primite: %A" data
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(data.id) then
                     return! json {| success = false; error = "ID-ul serviciului este obligatoriu" |} next ctx
                 elif String.IsNullOrWhiteSpace(data.serviciu.nume) then
@@ -318,7 +283,6 @@ let updateServiciuHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
 let deleteServiciuHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -326,7 +290,6 @@ let deleteServiciuHandler : HttpHandler =
                 let! data = ctx.BindJsonAsync<{| id: string |}>()
                 printfn "=== Request ștergere serviciu ==="
                 printfn "ID serviciu: %s" data.id
-                
                 if String.IsNullOrWhiteSpace(data.id) then
                     return! json {| success = false; error = "ID-ul serviciului este obligatoriu" |} next ctx
                 else
@@ -339,9 +302,6 @@ let deleteServiciuHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
-// ===== HANDLER-URI PENTRU PLĂȚI (FĂRĂ DELETE) =====
-
 let getAllPlatiHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -357,7 +317,6 @@ let getAllPlatiHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| error = ex.Message; plati = [] |} next ctx
         }
-
 let addPlataHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -365,8 +324,6 @@ let addPlataHandler : HttpHandler =
                 let! plata = ctx.BindJsonAsync<Plata>()
                 printfn "=== Request adăugare plată ==="
                 printfn "Plată primită: %A" plata
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(plata.idApartament) then
                     return! json {| success = false; error = "Apartamentul este obligatoriu" |} next ctx
                 elif String.IsNullOrWhiteSpace(plata.idServiciu) then
@@ -385,7 +342,6 @@ let addPlataHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
 let updatePlataHandler : HttpHandler =
     fun next ctx ->
         task {
@@ -393,8 +349,6 @@ let updatePlataHandler : HttpHandler =
                 let! data = ctx.BindJsonAsync<{| id: string; plata: Plata |}>()
                 printfn "=== Request editare plată ==="
                 printfn "Date primite: %A" data
-                
-                // Validare de bază
                 if String.IsNullOrWhiteSpace(data.id) then
                     return! json {| success = false; error = "ID-ul plății este obligatoriu" |} next ctx
                 elif String.IsNullOrWhiteSpace(data.plata.idApartament) then
@@ -415,9 +369,6 @@ let updatePlataHandler : HttpHandler =
                 printfn "Stack trace: %s" ex.StackTrace
                 return! json {| success = false; error = ex.Message |} next ctx
         }
-
-// ELIMINAT deletePlataHandler - nu mai există funcționalitatea de ștergere pentru plăți
-
 let webApp =
     choose [
         route "/" >=> htmlFile "index.html"
@@ -431,30 +382,22 @@ let webApp =
         POST >=> route "/locatari/add" >=> addResidentsHandler
         POST >=> route "/locatari/update" >=> updateResidentsHandler
         POST >=> route "/locatari/delete" >=> deleteResidentsHandler
-        // Endpoint-uri pentru apartamente (FĂRĂ DELETE)
         GET >=> route "/apartamente/getAll" >=> getAllApartmentsHandler
         POST >=> route "/apartamente/add" >=> addApartmentHandler
         POST >=> route "/apartamente/update" >=> updateApartmentHandler
-        // Endpoint-uri pentru servicii
         GET >=> route "/servicii/getAll" >=> getAllServiciiHandler
         POST >=> route "/servicii/add" >=> addServiciuHandler
         POST >=> route "/servicii/update" >=> updateServiciuHandler
         POST >=> route "/servicii/delete" >=> deleteServiciuHandler
-        // Endpoint-uri pentru plăți (FĂRĂ DELETE)
         GET >=> route "/plati/getAll" >=> getAllPlatiHandler
         POST >=> route "/plati/add" >=> addPlataHandler
         POST >=> route "/plati/update" >=> updatePlataHandler
-        // ELIMINAT: POST >=> route "/plati/delete" >=> deletePlataHandler
     ]
-
 let configureApp (app: IApplicationBuilder) =
-    // CORS trebuie să fie primul middleware
     app.UseCors("AllowAll") |> ignore
     app.UseGiraffe webApp
-
 let configureServices (services: IServiceCollection) =
     services.AddGiraffe() |> ignore
-    // Configurare CORS mai permisivă
     services.AddCors(fun options ->
         options.AddPolicy("AllowAll", fun builder ->
             builder
@@ -463,7 +406,6 @@ let configureServices (services: IServiceCollection) =
                 .AllowAnyHeader()
             |> ignore)
     ) |> ignore
-
 [<EntryPoint>]
 let main args =
     printfn "=== Pornesc serverul pe portul 5176 ==="

@@ -558,7 +558,6 @@ let addPlata (plata: Plata) =
         printfn "Eroare detaliată în addPlata: %s" ex.Message
         printfn "Stack trace: %s" ex.StackTrace
         reraise()
-
 let updatePlata (id: string) (plata: Plata) =
     try
         use conn = new MySqlConnection(connectionString)
